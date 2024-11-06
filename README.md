@@ -1,7 +1,12 @@
 # cikiBot-java
-ontbot 11 机器人实现，自娱自乐的项目，喜欢请任意取用  
+ontbot 11 qq机器人实现，自娱自乐的项目，喜欢请任意取用  
 java onebot sdk使用shiro sdk  
 chatgpt java sdk 使用 chatgpt-java    
+
+# 功能介绍
+1.权限控制，支持白名单和管理员
+2.chatgpt聊天，支持自行切换模型，支持上下文定时保持，支持可配置上下文裁剪个数，支持群聊和私聊，支持根据qq号不同独立维护上下文
+3.涩图机器人，支持设置多种不同的图库，支持pixiv排行榜，支持自定义数量以及不可描述的参数，支持私聊群聊独立配置
 
 # 部署相关：  
 目前只提供了linux的部署包,本质上就是springboot runnable jar包,windows可以自行琢磨  
