@@ -1,7 +1,7 @@
 # cikiBot-java
 ontbot 11 机器人实现  
 
-部署相关：  
+# 部署相关：  
 目前只提供了linux的部署包,本质上就是springboot runnable jar包,windows可以自行琢磨  
 
 1.需要一个机器人肉体夺舍，推荐napcatqq，onebot机器人启动自行查看对应实现的说明书。本项目主要需要webservice反向代理地址  
@@ -9,7 +9,7 @@ ontbot 11 机器人实现
 3.修改config中application.properties对应的配置  
 4.执行start-vm.sh启动项目  
 
-功能说明：  
+# 功能说明：  
 1.权限相关  
     权限有两种，配置在application.properties中的管理员qq拥有全部权限  
     添加白名单中的用户可以拥有实例指令权限，比如请求涩图，使用gpt聊天，但是无法修改配置，比如设置模型，设置图库  
