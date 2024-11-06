@@ -11,6 +11,20 @@ chatgpt java sdk 使用 chatgpt-java
 3.修改config中application.properties对应的配置  
 4.执行start-vm.sh启动项目  
 
+配置说明  
+spring.application.name=cikibot  //不用改  
+
+shiro.ws.client.enable=true  //参考shiro对应配置  
+shiro.ws.client.url=ws://your_host:wsport  //反向ws地址  
+
+chatbot.admin.qqnum=admin_qq_num  //管理员qq号 多个qq用,分割  
+chatbot.apiKey=your_openaikey    //openai的key  
+chatbot.apiHost=openai_host     //openai的地址,有代理用代理,没有就填原地址  
+contextHoldLength=4      //chatgpt聊天持有上下文长度  
+
+acgmx.token=your_token  //涩图 排行 用到 ，到  https://www.acgmx.com/ 自行申请  
+saucenao.apikey=your_apikey  //搜图用到，太久没维护了，不确保功能正常，暂时未开放，不用管  
+
 # 功能说明：  
 # # 1.权限相关  
     权限有两种，配置在application.properties中的管理员qq拥有全部权限  
