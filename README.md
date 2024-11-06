@@ -1,7 +1,7 @@
 # cikiBot-java
-ontbot 11 机器人实现，自娱自乐的项目，喜欢请任意取用。
-java onebot sdk使用shiro sdk
-chatgpt java sdk 使用 chatgpt-java
+ontbot 11 机器人实现，自娱自乐的项目，喜欢请任意取用。  
+java onebot sdk使用shiro sdk  
+chatgpt java sdk 使用 chatgpt-java  
 
 # 部署相关：  
 目前只提供了linux的部署包,本质上就是springboot runnable jar包,windows可以自行琢磨  
