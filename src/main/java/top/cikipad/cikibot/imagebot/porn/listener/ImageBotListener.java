@@ -80,7 +80,7 @@ public class ImageBotListener {
                 log.info("成功设置群图库为:" + tpye);
             }
             else {
-                bot.sendMsg(event, "设置群图库失败", false);
+                bot.sendMsg(event, "设置群图库失败,支持图库类型: " + imageSourceManager.getAllType(), false);
                 log.info("设置群图库失败,支持图库类型: " + imageSourceManager.getAllType());
             }
         }
@@ -92,7 +92,7 @@ public class ImageBotListener {
                 log.info("成功设置私密图库为:" + tpye);
             }
             else {
-                bot.sendMsg(event, "设置私密图库失败", false);
+                bot.sendMsg(event, "设置私密图库失败,支持图库类型: " + imageSourceManager.getAllType(), false);
                 log.info("设置私密图库失败,支持图库类型: " + imageSourceManager.getAllType());
             }
         }
