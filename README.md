@@ -1,8 +1,8 @@
 # cikiBot-java
-ontbot 11 机器人实现
+ontbot 11 机器人实现  
 
-部署相关：
-目前只提供了linux的部署包,本质上就是springboot runnable jar包,windows可以自行琢磨
+部署相关：  
+目前只提供了linux的部署包,本质上就是springboot runnable jar包,windows可以自行琢磨  
 
 1.需要一个机器人肉体夺舍，推荐napcatqq，onebot机器人启动自行查看对应实现的说明书。本项目主要需要webservice反向代理地址
 2.下载release的tar.gz,解压到linux主机任何目录
