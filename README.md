@@ -24,7 +24,7 @@ shiro.ws.client.url=ws://your_host:wsport  //反向ws地址
 
 chatbot.admin.qqnum=admin_qq_num  //管理员qq号 多个qq用,分割  
 chatbot.apiKey=your_openaikey    //openai的key  
-chatbot.apiHost=openai_host     //openai的地址,有代理用代理,没有就填原地址  
+chatbot.apiHost=openai_host     //openai的地址,有代理用代理,没有就填原地址,例如：https://api.openai.com 或者 https://api.chatanywhere.tech   
 contextHoldLength=4      //chatgpt聊天持有上下文长度  
 
 acgmx.token=your_token  //涩图 排行 用到 ，到  https://www.acgmx.com/ 自行申请  
