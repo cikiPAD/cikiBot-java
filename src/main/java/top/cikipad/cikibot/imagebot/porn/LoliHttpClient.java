@@ -15,13 +15,7 @@ import java.io.IOException;
 import java.util.Map;
 
 
-/**
- * HttpClient
- *
- * @author hekm
- * @date 2017-6-2
- *
- */
+
 @Slf4j
 @Component
 public class LoliHttpClient {
