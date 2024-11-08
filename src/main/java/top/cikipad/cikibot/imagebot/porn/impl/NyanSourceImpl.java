@@ -21,7 +21,7 @@ import java.util.Map;
 public class NyanSourceImpl implements ImageSourceInterface {
 
 
-    public String url = "https://sex.nyan.xyz/api/v2/";
+    public String url = "https://sex.nyan.run/api/v2/";
 
     @Override
     public String getType() {
