@@ -19,7 +19,7 @@ public class ParamsConstant {
 
     public static final String YD_TYPE = "图片系列";
 
-    public static final String PROXY_HOST = "i.pixiv.cat";
+    public static final String PROXY_HOST = "i.pixiv.re";
 
     public static final String ORI_HOST = "i.pximg.net";
 
