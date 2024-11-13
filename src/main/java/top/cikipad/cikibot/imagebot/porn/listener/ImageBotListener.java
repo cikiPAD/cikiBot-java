@@ -28,6 +28,7 @@ import top.cikipad.cikibot.chatgpt.entity.ContextEntity;
 import top.cikipad.cikibot.common.auth.AuthService;
 import top.cikipad.cikibot.constant.CommonConstant;
 import top.cikipad.cikibot.imagebot.porn.ImageSourceManager;
+import top.cikipad.cikibot.imagebot.porn.LoliHttpClient;
 import top.cikipad.cikibot.imagebot.porn.constant.ParamsConstant;
 import top.cikipad.cikibot.imagebot.porn.constant.SourceTypeConstant;
 import top.cikipad.cikibot.imagebot.porn.entity.ImageUrlEntity;
@@ -47,6 +48,9 @@ public class ImageBotListener {
 
     @Autowired
     private AuthService authService;
+
+    @Value("${img.checkUrlValid:false}")
+    private boolean checkUrlValid;
 
     public static final String SET_POOL_TYPE_PREFIX = "设置图库 ";
 
@@ -203,6 +207,9 @@ public class ImageBotListener {
                 msgList.add(MsgUtils.builder().text(entity.getDisplayString()).build());
                 if (entity.getUrls() != null) {
                     for (String url:entity.getUrls()) {
+                        if (checkUrlValid && !LoliHttpClient.isLinkValid(url)) {
+                            log.info("{},链接无效,跳过");
+                        }
                         msgList.add(MsgUtils.builder().img(url).build());
                     }
                 }
