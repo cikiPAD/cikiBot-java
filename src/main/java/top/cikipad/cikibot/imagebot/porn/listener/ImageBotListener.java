@@ -209,6 +209,7 @@ public class ImageBotListener {
                     for (String url:entity.getUrls()) {
                         if (checkUrlValid && !LoliHttpClient.isLinkValid(url)) {
                             log.info("{},链接无效,跳过");
+                            continue;
                         }
                         msgList.add(MsgUtils.builder().img(url).build());
                     }
