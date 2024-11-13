@@ -190,12 +190,12 @@ public class LoliHttpClient {
             URL url = new URL(urlString);
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("HEAD"); // 使用HEAD方法进行请求，避免下载内容
-            connection.setConnectTimeout(3000); // 设置连接超时时间
-            connection.setReadTimeout(3000); // 设置读取超时时间
+            connection.setConnectTimeout(6000); // 设置连接超时时间
+            connection.setReadTimeout(6000); // 设置读取超时时间
             int responseCode = connection.getResponseCode();
 
-            // 判断响应码是否为404
-            return (responseCode == HttpURLConnection.HTTP_OK);
+            // 判断响应码是否不为404
+            return (responseCode != HttpURLConnection.HTTP_NOT_FOUND);
         } catch (Exception e) {
             log.error("", e);
             return false;
