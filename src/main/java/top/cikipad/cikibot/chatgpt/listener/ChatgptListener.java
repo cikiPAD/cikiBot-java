@@ -1,10 +1,13 @@
 package top.cikipad.cikibot.chatgpt.listener;
 
+import com.alibaba.fastjson.JSONObject;
 import com.mikuac.shiro.annotation.AnyMessageHandler;
 import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
 import com.mikuac.shiro.annotation.PrivateMessageHandler;
 import com.mikuac.shiro.annotation.common.Shiro;
+import com.mikuac.shiro.common.utils.MsgUtils;
+import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
 import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
@@ -23,14 +26,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import top.cikipad.cikibot.chatgpt.context.ContextManager;
 import top.cikipad.cikibot.chatgpt.entity.ContextEntity;
+import top.cikipad.cikibot.chatgpt.entity.IntentionEntity;
 import top.cikipad.cikibot.common.auth.AuthService;
 import top.cikipad.cikibot.constant.CommonConstant;
+import top.cikipad.cikibot.constant.StaticPrompt;
+import top.cikipad.cikibot.imagebot.porn.ImageSourceManager;
+import top.cikipad.cikibot.imagebot.porn.LoliHttpClient;
+import top.cikipad.cikibot.imagebot.porn.constant.ParamsConstant;
+import top.cikipad.cikibot.imagebot.porn.entity.ImageUrlEntity;
 import top.cikipad.cikibot.util.ConfigManager;
 
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Matcher;
 
 
@@ -54,6 +61,12 @@ public class ChatgptListener {
     @Value("${chatbot.apiHost}")
     private String apiHost;
 
+    @Value("${img.checkUrlValid:false}")
+    private boolean checkUrlValid;
+
+    @Value("${chatbot.intention.enable:false}")
+    private boolean intentionEnable;
+
     public static final String PRIVATE_PREFIX = "对话 ";
 
     public static final String SET_MODEL_PREFIX = "设置模型 ";
@@ -66,6 +79,10 @@ public class ChatgptListener {
 
 
     OpenAiClient openAiClient = null;
+
+
+    @Autowired
+    private ImageSourceManager imageSourceManager;
 
 
     @PostConstruct
@@ -139,33 +156,95 @@ public class ChatgptListener {
 
         String param = text.replaceAll("\\[CQ:at,qq=[^,\\[\\]:]{0,25}\\]","");
 
-        Message message = Message.builder().role(Message.Role.USER).content(param).build();
-        ContextEntity contextEntity = contextManager.getContextEntityGroup(event.getGroupId() + "", event.getUserId() + "");
-        List<Message> requestList = new ArrayList<>();
-        requestList.addAll(contextEntity.getMsgList());
-        requestList.add(message);
 
-
-        ChatCompletion chatCompletion = ChatCompletion.builder().model(getCurrentModel()).messages(requestList).build();
-        ChatCompletionResponse chatCompletionResponse = openAiClient.chatCompletion(chatCompletion);
-        List<ChatChoice> choices = chatCompletionResponse.getChoices();
-        if (choices != null && !choices.isEmpty()) {
-
-            //存储上下文
-            ContextEntity newEntity = new ContextEntity();
-            newEntity.setLockedNext(contextEntity.getLockedNext());
-            List<Message> newEntityMsgList = new ArrayList<>();
-            newEntityMsgList.addAll(contextEntity.getMsgList());
-            newEntityMsgList.add(message);
-            newEntityMsgList.add(choices.get(0).getMessage());
-            newEntity.setMsgList(newEntityMsgList);
-            contextManager.setContextEntityGroup(event.getGroupId() + "", event.getUserId() + "",newEntity);
-
-
-            bot.sendGroupMsg(event.getGroupId(), choices.get(0).getMessage().getContent(), false);
+        IntentionEntity intention = null;
+        if (intentionEnable) {
+            intention = getIntention(param);
         }
         else {
-            bot.sendGroupMsg(event.getGroupId(), "调用模型失败，未能够收到返回!", false);
+            intention = new IntentionEntity();
+            intention.setFlag(false);
+        }
+        //意图感知
+        if (intention.isFlag()) {
+
+            bot.sendGroupMsg(event.getGroupId(), String.format("猫娘正在为您寻找涩图..."), false);
+
+            if (intention.getNum()>5 || intention.getNum()<1) {
+                intention.setNum(2);
+            }
+
+            Map<String, Object> paramsMap = new HashMap<>();
+            boolean gkd = StringUtils.hasLength(intention.getKeyword()) ? false : true;
+
+
+            if (!gkd) {
+                paramsMap.put(ParamsConstant.TAG, intention.getKeyword());
+                paramsMap.put(ParamsConstant.R18, 0);
+                paramsMap.put(ParamsConstant.NUM, 2);
+            }
+
+
+            List<ImageUrlEntity> imageUrlsEntity = new ArrayList<>();
+
+            imageUrlsEntity = imageSourceManager.getImageUrlsEntity(paramsMap, false, gkd);
+
+
+            List<String> msgList = new ArrayList<>();
+
+            if (imageUrlsEntity == null || imageUrlsEntity.isEmpty()) {
+                bot.sendGroupMsg(event.getGroupId(), MsgUtils.builder().at(event.getUserId()).text(" 无法获取图片").build(), false);
+            }
+            else {
+
+                for (ImageUrlEntity entity:imageUrlsEntity) {
+                    msgList.add(MsgUtils.builder().text(entity.getDisplayString()).build());
+                    if (entity.getUrls() != null) {
+                        for (String url:entity.getUrls()) {
+                            if (checkUrlValid && !LoliHttpClient.isLinkValid(url)) {
+                                log.info("{},链接无效,跳过",url);
+                                continue;
+                            }
+                            msgList.add(MsgUtils.builder().img(url).build());
+                        }
+                    }
+                }
+
+                List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
+
+                bot.sendGroupForwardMsg(event.getGroupId(), forwardMsg);
+
+                log.info("发送图片至{},内容:{}",event.getGroupId()==null?event.getUserId():event.getGroupId(),forwardMsg);
+
+            }
+        }
+        else{
+            Message message = Message.builder().role(Message.Role.USER).content(param).build();
+            ContextEntity contextEntity = contextManager.getContextEntityGroup(event.getGroupId() + "", event.getUserId() + "");
+            List<Message> requestList = new ArrayList<>();
+            requestList.addAll(contextEntity.getMsgList());
+            requestList.add(message);
+
+
+            ChatCompletion chatCompletion = ChatCompletion.builder().model(getCurrentModel()).messages(requestList).build();
+            ChatCompletionResponse chatCompletionResponse = openAiClient.chatCompletion(chatCompletion);
+            List<ChatChoice> choices = chatCompletionResponse.getChoices();
+            if (choices != null && !choices.isEmpty()) {
+
+                //存储上下文
+                ContextEntity newEntity = new ContextEntity();
+                newEntity.setLockedNext(contextEntity.getLockedNext());
+                List<Message> newEntityMsgList = new ArrayList<>();
+                newEntityMsgList.addAll(contextEntity.getMsgList());
+                newEntityMsgList.add(message);
+                newEntityMsgList.add(choices.get(0).getMessage());
+                newEntity.setMsgList(newEntityMsgList);
+                contextManager.setContextEntityGroup(event.getGroupId() + "", event.getUserId() + "", newEntity);
+
+                bot.sendGroupMsg(event.getGroupId(), choices.get(0).getMessage().getContent(), false);
+            } else {
+                bot.sendGroupMsg(event.getGroupId(), "调用模型失败，未能够收到返回!", false);
+            }
         }
     }
 
@@ -277,6 +356,33 @@ public class ChatgptListener {
         }
     }
 
+
+
+    private IntentionEntity getIntention(String msg) {
+        try {
+            String input = String.format(StaticPrompt.INTENTION_PROMPT, msg);
+            Message message = Message.builder().role(Message.Role.USER).content(input).build();
+            List<Message> msgs = new ArrayList<>();
+            msgs.add(message);
+            ChatCompletion chatCompletion = ChatCompletion.builder().model("gpt-3.5-turbo").messages(msgs).build();
+            ChatCompletionResponse chatCompletionResponse = openAiClient.chatCompletion(chatCompletion);
+            List<ChatChoice> choices = chatCompletionResponse.getChoices();
+            if (choices != null && !choices.isEmpty()) {
+                String jsonStr = choices.get(0).getMessage().getContent();
+                IntentionEntity intentionEntity = JSONObject.parseObject(jsonStr, IntentionEntity.class);
+                log.info("成功感知意图{}",intentionEntity);
+                return intentionEntity;
+            }
+        }
+        catch (Exception e) {
+            log.error("", e);
+            log.error("感知用户意图失败!输入为:{}", msg);
+        }
+        IntentionEntity ret =  new IntentionEntity();
+        ret.setFlag(false);
+        log.info("感知意图失败");
+        return ret;
+    }
 
 
 }
