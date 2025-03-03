@@ -170,7 +170,7 @@ public class ChatgptListener {
 
             bot.sendGroupMsg(event.getGroupId(), String.format("猫娘正在为您寻找涩图..."), false);
 
-            if (intention.getNum()>5 || intention.getNum()<1) {
+            if (intention.getNum() == null || intention.getNum()>5 || intention.getNum()<1) {
                 intention.setNum(2);
             }
 
@@ -181,7 +181,7 @@ public class ChatgptListener {
             if (!gkd) {
                 paramsMap.put(ParamsConstant.TAG, intention.getKeyword());
                 paramsMap.put(ParamsConstant.R18, 0);
-                paramsMap.put(ParamsConstant.NUM, 2);
+                paramsMap.put(ParamsConstant.NUM, intention.getNum()==null?2:intention.getNum());
             }
 
 
