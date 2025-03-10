@@ -67,6 +67,9 @@ public class ChatgptListener {
     @Value("${chatbot.intention.enable:false}")
     private boolean intentionEnable;
 
+    @Value("${chatbot.intention.modelName:gpt-3.5-turbo}")
+    private String intentionModelName;
+
     public static final String PRIVATE_PREFIX = "对话 ";
 
     public static final String SET_MODEL_PREFIX = "设置模型 ";
@@ -364,7 +367,7 @@ public class ChatgptListener {
             Message message = Message.builder().role(Message.Role.USER).content(input).build();
             List<Message> msgs = new ArrayList<>();
             msgs.add(message);
-            ChatCompletion chatCompletion = ChatCompletion.builder().model("gpt-3.5-turbo").messages(msgs).build();
+            ChatCompletion chatCompletion = ChatCompletion.builder().model(intentionModelName).messages(msgs).build();
             ChatCompletionResponse chatCompletionResponse = openAiClient.chatCompletion(chatCompletion);
             List<ChatChoice> choices = chatCompletionResponse.getChoices();
             if (choices != null && !choices.isEmpty()) {
