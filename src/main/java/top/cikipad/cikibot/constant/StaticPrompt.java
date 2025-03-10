@@ -22,7 +22,7 @@ public class StaticPrompt {
                 "12.接下来的你的所有回复都需要体现上述你的人设");
     }
 
-    public static final String INTENTION_PROMPT = "#我需要你协助我从一段用户输入中判断用户意图并提取结果为json返回给我\n" +
+    public static final String INTENTION_PROMPT = "#我需要你协助我从一段用户输入中判断用户意图并提取结果为json返回给我,请务必有且仅有返回的json格式,不要包含其他东西\n" +
             "#你需要判断用户是否需要请求涩图相关内容，如果是，返回json字段flag返回true，反之返回否\n" +
             "#如果上一步解析出用户需要请求涩图相关内容，flag返回了true，你需要追加提取以下内容\n" +
             "##提取用户需要涩图的关键字，把关键字也体现在返回json的keyword字段中，如果没有相关信息，该字段默认为null\n" +
