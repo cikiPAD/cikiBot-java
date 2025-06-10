@@ -1,32 +1,18 @@
 package top.cikipad.cikibot.imagebot.porn.listener;
 
 import com.mikuac.shiro.annotation.AnyMessageHandler;
-import com.mikuac.shiro.annotation.GroupMessageHandler;
 import com.mikuac.shiro.annotation.MessageHandlerFilter;
-import com.mikuac.shiro.annotation.PrivateMessageHandler;
 import com.mikuac.shiro.annotation.common.Shiro;
 import com.mikuac.shiro.common.utils.MsgUtils;
 import com.mikuac.shiro.common.utils.ShiroUtils;
 import com.mikuac.shiro.core.Bot;
 import com.mikuac.shiro.dto.event.message.AnyMessageEvent;
-import com.mikuac.shiro.dto.event.message.GroupMessageEvent;
-import com.mikuac.shiro.dto.event.message.PrivateMessageEvent;
-import com.mikuac.shiro.enums.AtEnum;
-import com.unfbx.chatgpt.OpenAiClient;
-import com.unfbx.chatgpt.entity.chat.ChatChoice;
-import com.unfbx.chatgpt.entity.chat.ChatCompletion;
-import com.unfbx.chatgpt.entity.chat.ChatCompletionResponse;
-import com.unfbx.chatgpt.entity.chat.Message;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-import top.cikipad.cikibot.chatgpt.context.ContextManager;
-import top.cikipad.cikibot.chatgpt.entity.ContextEntity;
 import top.cikipad.cikibot.common.auth.AuthService;
-import top.cikipad.cikibot.constant.CommonConstant;
 import top.cikipad.cikibot.imagebot.porn.ImageSourceManager;
 import top.cikipad.cikibot.imagebot.porn.LoliHttpClient;
 import top.cikipad.cikibot.imagebot.porn.constant.ParamsConstant;
@@ -35,13 +21,18 @@ import top.cikipad.cikibot.imagebot.porn.entity.ImageUrlEntity;
 import top.cikipad.cikibot.util.ConfigManager;
 
 import java.util.*;
-import java.util.regex.Matcher;
-
+import java.util.stream.Collectors;
 
 @Component
 @Shiro
 @Slf4j
 public class ImageBotListener {
+
+    private static final String SET_POOL_TYPE_PREFIX = "设置图库 ";
+    private static final String SET_POOL_PARAM_PREFIX = "设置图库参数 ";
+    private static final String GET_IMAGE_PREFIX = "涩图 ";
+    private static final String RANK_PREFIX = "排行 ";
+    private static final String RANK2_PREFIX = "排行2 ";
 
     @Autowired
     private ConfigManager config;
@@ -49,196 +40,138 @@ public class ImageBotListener {
     @Autowired
     private AuthService authService;
 
-    @Value("${img.checkUrlValid:false}")
-    private boolean checkUrlValid;
-
-    public static final String SET_POOL_TYPE_PREFIX = "设置图库 ";
-
-    public static final String SET_POOL_PARAM_PREFIX = "设置图库参数 ";
-
-    public static final String GET_IMAGE_PREFIX = "涩图 ";
-
     @Autowired
     private ImageSourceManager imageSourceManager;
 
-
-
+    @Value("${img.checkUrlValid:false}")
+    private boolean checkUrlValid;
 
     @AnyMessageHandler
     @MessageHandlerFilter(startWith = {SET_POOL_TYPE_PREFIX})
     public void setImagePoolType(Bot bot, AnyMessageEvent event) {
-        if (!authService.checkAuth(event, true)) {
-            bot.sendMsg(event, "未授权访问", false);
+        if (!checkAuthAndRespond(bot, event, true)) {
             return;
         }
-        String text = event.getMessage();
-        String tpye = getRealParam(SET_POOL_TYPE_PREFIX, text).toLowerCase();
 
+        String type = getRealParam(SET_POOL_TYPE_PREFIX, event.getMessage()).toLowerCase();
+        boolean isGroup = event.getGroupId() != null;
+        boolean success = isGroup ? 
+            imageSourceManager.setCurrentTypeNormal(type) : 
+            imageSourceManager.setCurrentTypeSp(type);
 
-        boolean succ = false;
-        if (event.getGroupId() != null) {
-            succ = imageSourceManager.setCurrentTypeNormal(tpye);
+        String message = success ? 
+            String.format("成功设置%s图库为: %s", isGroup ? "群" : "私密", type) :
+            String.format("设置%s图库失败,支持图库类型: %s", isGroup ? "群" : "私密", imageSourceManager.getAllType());
 
-            if (succ) {
-                bot.sendMsg(event, "成功设置群图库为:" + tpye, false);
-                log.info("成功设置群图库为:" + tpye);
-            }
-            else {
-                bot.sendMsg(event, "设置群图库失败,支持图库类型: " + imageSourceManager.getAllType(), false);
-                log.info("设置群图库失败,支持图库类型: " + imageSourceManager.getAllType());
-            }
-        }
-        else {
-            succ = imageSourceManager.setCurrentTypeSp(tpye);
-
-            if (succ) {
-                bot.sendMsg(event, "成功设置私密图库为:" + tpye, false);
-                log.info("成功设置私密图库为:" + tpye);
-            }
-            else {
-                bot.sendMsg(event, "设置私密图库失败,支持图库类型: " + imageSourceManager.getAllType(), false);
-                log.info("设置私密图库失败,支持图库类型: " + imageSourceManager.getAllType());
-            }
-        }
+        bot.sendMsg(event, message, false);
+        log.info(message);
     }
-
-
 
     @AnyMessageHandler
     @MessageHandlerFilter(startWith = {SET_POOL_PARAM_PREFIX})
     public void setImagePoolAdditionParam(Bot bot, AnyMessageEvent event) {
-        if (!authService.checkAuth(event, true)) {
-            bot.sendMsg(event, "未授权访问", false);
+        if (!checkAuthAndRespond(bot, event, true)) {
             return;
         }
-        String text = event.getMessage();
-        String paramPair = getRealParam(SET_POOL_PARAM_PREFIX, text);
 
-        String[] param = paramPair.split(" ");
-
-        if (param.length != 2) {
+        String[] params = getRealParam(SET_POOL_PARAM_PREFIX, event.getMessage()).split(" ");
+        if (params.length != 2) {
             bot.sendMsg(event, "参数异常!请输入 设置图库参数 参数key 参数param", false);
+            return;
         }
 
-        if (event.getGroupId() != null) {
-            imageSourceManager.putAdditionParamNormal(param[0], param[1]);
-            bot.sendMsg(event, "成功设置群组图库参数", false);
-            log.info("成功设置群组图库参数{}={}",param[0], param[1]);
+        boolean isGroup = event.getGroupId() != null;
+        if (isGroup) {
+            imageSourceManager.putAdditionParamNormal(params[0], params[1]);
+        } else {
+            imageSourceManager.putAdditionParamSp(params[0], params[1]);
+        }
 
-        }
-        else {
-            imageSourceManager.putAdditionParamSp(param[0], param[1]);
-            bot.sendMsg(event, "成功设置私密图库参数", false);
-            log.info("成功设置私密图库参数{}={}",param[0], param[1]);
-        }
+        String message = String.format("成功设置%s图库参数 %s=%s", 
+            isGroup ? "群组" : "私密", params[0], params[1]);
+        bot.sendMsg(event, message, false);
+        log.info(message);
     }
-
 
     @AnyMessageHandler
     @MessageHandlerFilter(startWith = {GET_IMAGE_PREFIX})
     public void getImage(Bot bot, AnyMessageEvent event) {
-        if (!authService.checkAuth(event, false)) {
-            bot.sendMsg(event, "未授权访问", false);
+        if (!checkAuthAndRespond(bot, event, false)) {
             return;
         }
-        String text = event.getMessage();
-        String realParam = getRealParam(GET_IMAGE_PREFIX, text);
 
-
-
+        String realParam = getRealParam(GET_IMAGE_PREFIX, event.getMessage());
         Map<String, Object> paramsMap = new HashMap<>();
-        boolean gkd = false;
+        boolean gkd = "gkd".equalsIgnoreCase(realParam);
         int isRank = 0;
 
-        if ("gkd".equalsIgnoreCase(realParam)) {
-            gkd = true;
-        } else if (realParam.startsWith("排行 ")) {
-            String realParam2 = getRealParam("排行 ", realParam);
-            paramsMap.put(ParamsConstant.TAG, realParam2);
+        if (gkd) {
+            // Handle gkd case
+        } else if (realParam.startsWith(RANK_PREFIX)) {
+            paramsMap.put(ParamsConstant.TAG, getRealParam(RANK_PREFIX, realParam));
             isRank = 1;
-        }
-        else if (realParam.startsWith("排行2 ")) {
-            String realParam2 = getRealParam("排行 ", realParam);
-            paramsMap.put(ParamsConstant.TAG, realParam2);
+        } else if (realParam.startsWith(RANK2_PREFIX)) {
+            paramsMap.put(ParamsConstant.TAG, getRealParam(RANK_PREFIX, realParam));
             isRank = 2;
-        }
-        else {
+        } else {
             paramsMap.put(ParamsConstant.TAG, realParam);
             paramsMap.put(ParamsConstant.R18, 0);
             paramsMap.put(ParamsConstant.NUM, 2);
         }
 
         bot.sendMsg(event, MsgUtils.builder().at(event.getUserId()).text(" 获取中...").build(), false);
-
-        List<ImageUrlEntity> imageUrlsEntity = new ArrayList<>();
-
-        if (isRank == 1) {
-            if (event.getGroupId() != null) {
-                imageUrlsEntity = imageSourceManager.getImageUrlsEntity(SourceTypeConstant.ACGMX,paramsMap);
-            } else {
-                imageUrlsEntity = imageSourceManager.getImageUrlsEntity(SourceTypeConstant.ACGMX,paramsMap);
-            }
-
-        }
-        else if (isRank == 2 ) {
-
-            if (event.getGroupId() != null) {
-                imageUrlsEntity = imageSourceManager.getImageUrlsEntity(SourceTypeConstant.ACGMX_NEW,paramsMap);
-            } else {
-                imageUrlsEntity = imageSourceManager.getImageUrlsEntity(SourceTypeConstant.ACGMX_NEW,paramsMap);
-            }
-        }
-        else {
-            if (event.getGroupId() != null) {
-                imageUrlsEntity = imageSourceManager.getImageUrlsEntity(paramsMap, false, gkd);
-            } else {
-                imageUrlsEntity = imageSourceManager.getImageUrlsEntity(paramsMap, true, gkd);
-            }
-        }
-
-        List<String> msgList = new ArrayList<>();
-
+        List<ImageUrlEntity> imageUrlsEntity = getImageUrls(event, paramsMap, isRank, gkd);
+        
         if (imageUrlsEntity == null || imageUrlsEntity.isEmpty()) {
             bot.sendMsg(event, MsgUtils.builder().at(event.getUserId()).text(" 无法获取图片").build(), false);
+            return;
         }
-        else {
 
-            for (ImageUrlEntity entity:imageUrlsEntity) {
-                msgList.add(MsgUtils.builder().text(entity.getDisplayString()).build());
-                if (entity.getUrls() != null) {
-                    for (String url:entity.getUrls()) {
-                        if (checkUrlValid && !LoliHttpClient.isLinkValid(url)) {
-                            log.info("{},链接无效,跳过",url);
-                            continue;
-                        }
-                        msgList.add(MsgUtils.builder().img(url).build());
-                    }
-                }
+        List<String> msgList = buildMessageList(imageUrlsEntity);
+        List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
+        bot.sendForwardMsg(event, forwardMsg);
+        
+        log.info("发送图片至{},内容:{}", 
+            event.getGroupId() == null ? event.getUserId() : event.getGroupId(), 
+            forwardMsg);
+    }
+
+    private boolean checkAuthAndRespond(Bot bot, AnyMessageEvent event, boolean requireAdmin) {
+        if (!authService.checkAuth(event, requireAdmin)) {
+            bot.sendMsg(event, "未授权访问", false);
+            return false;
+        }
+        return true;
+    }
+
+    private List<ImageUrlEntity> getImageUrls(AnyMessageEvent event, Map<String, Object> paramsMap, int isRank, boolean gkd) {
+        boolean isGroup = event.getGroupId() != null;
+        
+        if (isRank == 1) {
+            return imageSourceManager.getImageUrlsEntity(SourceTypeConstant.ACGMX, paramsMap);
+        } else if (isRank == 2) {
+            return imageSourceManager.getImageUrlsEntity(SourceTypeConstant.ACGMX_NEW, paramsMap);
+        } else {
+            return imageSourceManager.getImageUrlsEntity(paramsMap, !isGroup, gkd);
+        }
+    }
+
+    private List<String> buildMessageList(List<ImageUrlEntity> imageUrlsEntity) {
+        List<String> msgList = new ArrayList<>();
+        
+        for (ImageUrlEntity entity : imageUrlsEntity) {
+            msgList.add(MsgUtils.builder().text(entity.getDisplayString()).build());
+            if (entity.getUrls() != null) {
+                entity.getUrls().stream()
+                    .filter(url -> !checkUrlValid || LoliHttpClient.isLinkValid(url))
+                    .forEach(url -> msgList.add(MsgUtils.builder().img(url).build()));
             }
-
-            List<Map<String, Object>> forwardMsg = ShiroUtils.generateForwardMsg(bot, msgList);
-
-            bot.sendForwardMsg(event, forwardMsg);
-
-            log.info("发送图片至{},内容:{}",event.getGroupId()==null?event.getUserId():event.getGroupId(),forwardMsg);
-
         }
-
-
+        
+        return msgList;
     }
 
-
-
-
-    private String getRealParam(String prefix,String input) {
-        if (input == null) {
-            return "";
-        }
-        return input.substring(prefix.length());
+    private String getRealParam(String prefix, String input) {
+        return input == null ? "" : input.substring(prefix.length());
     }
-
-
-
-
-
 }
