@@ -15,6 +15,44 @@ import java.util.Map;
 
 public class ERStatsUtil {
     private static final String API_BASE_URL = "https://er.dakgg.io/api/v1/players/%s/profile";
+
+    public enum MatchingMode {
+        ALL("ALL", "所有"),
+        NORMAL("NORMAL", "匹配"),
+        RANK("RANK", "排位");
+
+        private final String apiValue;
+        private final String displayText;
+
+        MatchingMode(String apiValue, String displayText) {
+            this.apiValue = apiValue;
+            this.displayText = displayText;
+        }
+
+        public String getApiValue() {
+            return apiValue;
+        }
+
+        public String getDisplayText() {
+            return displayText;
+        }
+
+        public static MatchingMode fromDisplayText(String text) {
+            if (text == null) {
+                return ALL;
+            }
+            return switch (text.trim()) {
+                case "排位" -> RANK;
+                case "匹配" -> NORMAL;
+                case "all", "ALL" -> ALL;
+                default -> ALL;
+            };
+        }
+
+        public boolean isRank() {
+            return this == RANK;
+        }
+    }
     
     @Data
     public static class ERStats {
@@ -270,9 +308,8 @@ public class ERStatsUtil {
         return report.toString();
     }
 
-    public static String generateRecentMatchesReport(String playerName, int matchingMode) {
-        String modeParam = matchingMode == 0 ? "ALL" : String.valueOf(matchingMode);
-        String apiUrl = String.format("https://er.dakgg.io/api/v1/players/%s/matches?matchingMode=%s&teamMode=ALL&page=1", playerName, modeParam);
+    public static String generateRecentMatchesReport(String playerName, MatchingMode matchingMode) {
+        String apiUrl = String.format("https://er.dakgg.io/api/v1/players/%s/matches?matchingMode=%s&teamMode=ALL&page=1", playerName, matchingMode.getApiValue());
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpGet request = new HttpGet(apiUrl);
             try (CloseableHttpResponse response = httpClient.execute(request)) {
@@ -284,14 +321,14 @@ public class ERStatsUtil {
         }
     }
 
-    private static String parseRecentMatches(String jsonResponse, String playerName, int matchingMode) {
+    private static String parseRecentMatches(String jsonResponse, String playerName, MatchingMode matchingMode) {
         JSONObject json = JSONObject.parseObject(jsonResponse);
         List<Map<String, Object>> matches = JSONObject.parseObject(
             json.getJSONArray("matches").toJSONString(),
             new TypeReference<List<Map<String, Object>>>() {}
         );
 
-        String modeText = matchingMode == 0 ? "" : (matchingMode == 2 ? "匹配" : "排位");
+        String modeText = matchingMode == MatchingMode.ALL ? "" : matchingMode.getDisplayText();
         StringBuilder report = new StringBuilder();
         report.append(String.format("""
             🎮 ER%s战绩 - %s (最近5场)
@@ -318,7 +355,7 @@ public class ERStatsUtil {
                 long duration = Long.valueOf(match.get("duration").toString());
                 String startTime = match.get("startDtm").toString();
                 int matchMatchingMode = Integer.valueOf(match.get("matchingMode").toString());
-                String matchType = matchingMode == 0 ? getMatchType(matchMatchingMode) : "";
+                String matchType = matchingMode == MatchingMode.ALL ? getMatchType(matchMatchingMode) : "";
                 int mmrChange = 0;
                 if (matchMatchingMode == 3) {
                     mmrChange = Integer.valueOf(match.get("mmrGain").toString());
@@ -352,7 +389,7 @@ public class ERStatsUtil {
                     viewContribution,
                     duration / 60,
                     startTime,
-                    matchingMode == 3 ? String.format("• 排位得分: %+d", mmrChange) : ""
+                    matchingMode.isRank() ? String.format("• 排位得分: %+d", mmrChange) : ""
                 ));
             });
 
