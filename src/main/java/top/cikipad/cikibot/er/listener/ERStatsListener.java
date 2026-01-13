@@ -103,20 +103,13 @@ public class ERStatsListener {
         String[] parts = params.split("\\s+", 2);
         String playerName = parts[0];
 
-        // 默认查询所有战绩（0=ALL）
-        int matchingMode = 0;
+        // 解析匹配模式
+        ERStatsUtil.MatchingMode matchingMode = ERStatsUtil.MatchingMode.ALL;
         if (parts.length > 1) {
-            String modeParam = parts[1].trim();
-            if ("排位".equals(modeParam)) {
-                matchingMode = 3;
-            } else if ("匹配".equals(modeParam)) {
-                matchingMode = 2;
-            } else if ("all".equalsIgnoreCase(modeParam)) {
-                matchingMode = 0;
-            }
+            matchingMode = ERStatsUtil.MatchingMode.fromDisplayText(parts[1]);
         }
 
-        String modeText = matchingMode == 0 ? "所有" : (matchingMode == 2 ? "匹配" : "排位");
+        String modeText = matchingMode.getDisplayText();
         bot.sendMsg(event, MsgUtils.builder().at(event.getUserId()).text(String.format(" 查询%s战绩中...", modeText)).build(), false);
 
         try {
